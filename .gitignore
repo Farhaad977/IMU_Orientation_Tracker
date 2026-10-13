@@ -1,0 +1,15 @@
+#CubeIDE folders created when we build
+Debug/
+Release/
+
+#Output of compilation
+*.o
+*.d
+*.elf
+*.bin
+*.hex
+*.map
+
+#IDE Settings
+.metadata/
+.settings/
