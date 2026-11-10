@@ -18,3 +18,8 @@
 | I2C1_SCL  | PB6 | I2C1, AF04   | MPU6050 SCL |
 | I2C1_SDA  | PB7 | I2C1, AF04   | MPU6050 SDA |
 
+## Clock Debugging
+
+| Signal | Pin | 
+|---|---|
+| MCO1 | PA8 |
