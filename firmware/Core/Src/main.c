@@ -27,6 +27,7 @@ int main(){
 
 	//Starting Timer in Interrupt Mode
 	HAL_TIM_Base_Start_IT(&TIMER10);
+	HAL_RCC_MCOConfig(RCC_MCO1, RCC_MCO1SOURCE_PLLCLK, RCC_MCODIV_1); //Outputting PLLCLK on MCU Clock Output PA8 Pin
 	while(1);
 	return 0;
 }
