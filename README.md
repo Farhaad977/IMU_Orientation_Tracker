@@ -5,3 +5,4 @@ This project aims to determine the orientation of an object by making use of an 
 ## Status
 
 - [x] Stage 1: CubeMX Project and LED Blink ([Timing Captures](docs/media/stage1_pc13_toggle_500ms.png))
+- [x] Stage 2: UART with Printf ([Snippet](docs/media/stage2_uart_communication.png))
