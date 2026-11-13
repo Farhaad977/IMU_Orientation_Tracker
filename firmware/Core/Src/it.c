@@ -6,12 +6,17 @@
  */
 #include "it.h"
 extern TIM_HandleTypeDef TIMER10;
-
+extern UART_HandleTypeDef HUART2;
 
 void SysTick_Handler(void)
 {
 	HAL_IncTick();
 	HAL_SYSTICK_IRQHandler();
+}
+
+void USART2_IRQHandler(void)
+{
+	HAL_UART_IRQHandler(&HUART2);
 }
 
 void TIM1_UP_TIM10_IRQHandler(void)

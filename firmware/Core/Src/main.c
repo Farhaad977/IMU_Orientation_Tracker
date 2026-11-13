@@ -8,27 +8,70 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "main.h"
 
 void SystemClockConfig(void);
 void Error_Handler(void);
+void UART_Init(void);
 void GPIO_LEDInit(void);	//To initialize the PC13 which is the Blue LED
 
 void TIM10Init(void);
 
 TIM_HandleTypeDef TIMER10;
+UART_HandleTypeDef HUART2;
 
-int main(){
+uint8_t COUNT_VAL = 0;
+uint8_t SYSCLK = 0;
+uint8_t HCLK = 0;
+uint8_t PCLK1 = 0;
+uint8_t PCLK2 = 0;
+uint32_t COUNT = 0;
+
+volatile uint8_t CNT_FLAG = FALSE;
+float IMU_DATA = 0.03245;
+
+const char boot_banner[] = "=== IMU Orientation Tracker ===\r\n"; //Boot Banner
+char CLK_FRQ [70];
+char CNT_IMU [50];
+int main()
+{
 
 	//HAL_Delay(200);
 	HAL_Init();
 	SystemClockConfig();
+	UART_Init();
+
+	while(HAL_UART_Transmit_IT(&HUART2, (uint8_t*)boot_banner, strlen(boot_banner))!= HAL_OK); //Program displays Boot Banner First
+
+	SYSCLK = HAL_RCC_GetSysClockFreq()/1000000;
+	HCLK = HAL_RCC_GetHCLKFreq()/1000000;
+	PCLK1 = HAL_RCC_GetPCLK1Freq()/1000000;
+	PCLK2 = HAL_RCC_GetPCLK2Freq()/1000000;
+
+	snprintf((char*)CLK_FRQ,sizeof(CLK_FRQ),"SYSCLK = %dMHz HCLK = %dMHz PCLK1 = %dMHz PCLK2 = %dMHz\r\n",SYSCLK,HCLK,PCLK1,PCLK2); //Printing Clock Settings
+
+	while(HAL_UART_Transmit_IT(&HUART2, (uint8_t*)CLK_FRQ, strlen((char*)CLK_FRQ)) != HAL_OK);
+
 	GPIO_LEDInit();
 	TIM10Init();
 
 	//Starting Timer in Interrupt Mode
 	HAL_TIM_Base_Start_IT(&TIMER10);
 	HAL_RCC_MCOConfig(RCC_MCO1, RCC_MCO1SOURCE_PLLCLK, RCC_MCODIV_1); //Outputting PLLCLK on MCU Clock Output PA8 Pin
-	while(1);
+	while(1)
+	{
+		//This executes every 2nd time Timer 10 Interrupt occurs(0.5*2=1s) displaying IMU Data and Counter Value.
+		if(CNT_FLAG)
+		{
+			COUNT++;
+			snprintf((char*)CNT_IMU,sizeof(CNT_IMU),"COUNT = %ld\r\nIMU Reading = %f\r\n",COUNT,IMU_DATA);
+			if(HAL_UART_Transmit_IT(&HUART2, (uint8_t*)CNT_IMU, strlen(CNT_IMU))!= HAL_OK)
+			{
+				Error_Handler();
+			}
+			CNT_FLAG = FALSE;
+		}
+	}
 	return 0;
 }
 
@@ -73,6 +116,21 @@ void SystemClockConfig(void)
 
 }
 
+void UART_Init(void)
+{
+	HUART2.Instance = USART2;
+	HUART2.Init.BaudRate = 115200;
+	HUART2.Init.Mode = UART_MODE_TX;
+	HUART2.Init.Parity = UART_PARITY_NONE;
+	HUART2.Init.StopBits = UART_STOPBITS_1;
+	HUART2.Init.WordLength = UART_WORDLENGTH_8B;
+	HUART2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+	if(HAL_UART_Init(&HUART2)!= HAL_OK)
+	{
+		Error_Handler();
+	}
+}
+
 void GPIO_LEDInit(void)
 {
 	//Enable the Clock for GPIOC Peripheral
@@ -105,6 +163,13 @@ void TIM10Init(void)
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
+	COUNT_VAL++;
 	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+	if(COUNT_VAL == 2)
+	{
+		COUNT_VAL = 0;
+		CNT_FLAG = TRUE; //Flag used to collect data every 1s and transmit it over UART.
+	}
 }
+
 
