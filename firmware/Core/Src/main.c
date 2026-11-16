@@ -13,12 +13,14 @@
 void SystemClockConfig(void);
 void Error_Handler(void);
 void UART_Init(void);
+void I2C1_Init(void);
 void GPIO_LEDInit(void);	//To initialize the PC13 which is the Blue LED
 
 void TIM10Init(void);
 
 TIM_HandleTypeDef TIMER10;
 UART_HandleTypeDef HUART2;
+I2C_HandleTypeDef I2CDEV;
 
 uint8_t COUNT_VAL = 0;
 uint8_t SYSCLK = 0;
@@ -33,6 +35,15 @@ float IMU_DATA = 0.03245;
 const char boot_banner[] = "=== IMU Orientation Tracker ===\r\n"; //Boot Banner
 char CLK_FRQ [70];
 char CNT_IMU [50];
+
+uint8_t data;
+uint8_t ret = 0; uint8_t retm = 0;
+uint8_t reg_val;
+uint8_t err;
+char data_buf[40];
+char err_buf[20];
+char reg_buf[40];
+char ret_buf[40];
 int main()
 {
 
@@ -40,6 +51,7 @@ int main()
 	HAL_Init();
 	SystemClockConfig();
 	UART_Init();
+	I2C1_Init();
 
 	while(HAL_UART_Transmit_IT(&HUART2, (uint8_t*)boot_banner, strlen(boot_banner))!= HAL_OK); //Program displays Boot Banner First
 
@@ -58,6 +70,44 @@ int main()
 	//Starting Timer in Interrupt Mode
 	HAL_TIM_Base_Start_IT(&TIMER10);
 	HAL_RCC_MCOConfig(RCC_MCO1, RCC_MCO1SOURCE_PLLCLK, RCC_MCODIV_1); //Outputting PLLCLK on MCU Clock Output PA8 Pin
+
+	//---------------------------------------------------------------------------------------------------------------------------//
+	//AD0 Pin is set as LOW (MPU-6050 Address 0x68)
+	ret = HAL_I2C_IsDeviceReady(&I2CDEV, (0x68<<1), 5, 3);
+	if(ret == HAL_OK)
+	{
+		snprintf((char*)data_buf,sizeof(data_buf),"MPU-6050 Address: = 0x68\r\n");
+		while(HAL_UART_Transmit_IT(&HUART2, (uint8_t*)data_buf, strlen(data_buf))!= HAL_OK);
+		retm = HAL_I2C_Mem_Read(&I2CDEV, (0x68 <<1), 0x75, I2C_MEMADD_SIZE_8BIT, &reg_val, 1, 1000);
+		if(retm == HAL_OK)
+		{
+			if(reg_val == 0x68)
+			{
+				snprintf((char*)reg_buf,sizeof(reg_buf),"WHO_AM_I Register Value = 0x%X(PASS)\r\n",reg_val);
+				while(HAL_UART_Transmit_IT(&HUART2, (uint8_t*)reg_buf, strlen(reg_buf))!= HAL_OK);
+			}
+			else
+			{
+				snprintf((char*)reg_buf,sizeof(reg_buf),"WHO_AM_I Register Value = 0x%X(FAIL)\r\n",reg_val);
+				while(HAL_UART_Transmit_IT(&HUART2, (uint8_t*)reg_buf, strlen(reg_buf))!= HAL_OK);
+			}
+		}
+		else
+		{
+			snprintf((char*)reg_buf,sizeof(reg_buf),"WHO_AM_I Register Read Failure 0x%X\r\n",retm);
+			while(HAL_UART_Transmit_IT(&HUART2, (uint8_t*)reg_buf, strlen(reg_buf))!= HAL_OK);
+		}
+	}
+	else
+	{
+		snprintf((char*)ret_buf,sizeof(ret_buf),"I2C Device Ready Status = 0x%X\r\n",ret);
+		while((HAL_UART_Transmit_IT(&HUART2, (uint8_t*)ret_buf, strlen(ret_buf))!= HAL_OK));
+		ret = HAL_I2C_GetError(&I2CDEV);
+		snprintf((char*)err_buf,sizeof(err_buf),"I2C Error = 0x%X\r\n",ret);
+		while((HAL_UART_Transmit_IT(&HUART2, (uint8_t*)err_buf, strlen(err_buf))!= HAL_OK));
+	}
+	//---------------------------------------------------------------------------------------------------------------------------//
+
 	while(1)
 	{
 		//This executes every 2nd time Timer 10 Interrupt occurs(0.5*2=1s) displaying IMU Data and Counter Value.
@@ -161,6 +211,21 @@ void TIM10Init(void)
 	}
 }
 
+void I2C1_Init(void)
+{
+	I2CDEV.Instance = I2C1;
+	I2CDEV.Init.ClockSpeed = 100000;
+	I2CDEV.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+	I2CDEV.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+	I2CDEV.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+	I2CDEV.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+	if(HAL_I2C_Init(&I2CDEV) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
+}
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	COUNT_VAL++;
@@ -171,5 +236,3 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		CNT_FLAG = TRUE; //Flag used to collect data every 1s and transmit it over UART.
 	}
 }
-
-

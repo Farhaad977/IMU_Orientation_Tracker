@@ -25,7 +25,7 @@ void HAL_MspInit(void)
 
 void HAL_UART_MspInit(UART_HandleTypeDef *huart)
 {
-    //Here we are going to do the Low Level Initialization of USART2 Peripheral.
+	//Here we are going to do the Low Level Initialization of USART2 Peripheral.
 	GPIO_InitTypeDef GPIO_UART = {0};
 	//1. Enable the Clock for USART2 Peripheral
 	__HAL_RCC_USART2_CLK_ENABLE();
@@ -48,11 +48,34 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
 
 void HAL_TIM_Base_MspInit(TIM_HandleTypeDef *htim)
 {
-  //1. TIMER10 Clock Enabled
-  __HAL_RCC_TIM10_CLK_ENABLE();
-  //2. Enable the IRQ of TIMER10
-  HAL_NVIC_EnableIRQ(TIM1_UP_TIM10_IRQn);
-  //3. Configure the Priority for TIM1_UP_TIM10_IRQn
-  HAL_NVIC_SetPriority(TIM1_UP_TIM10_IRQn, 15, 0);
+	//1. TIMER10 Clock Enabled
+	__HAL_RCC_TIM10_CLK_ENABLE();
+	//2. Enable the IRQ of TIMER10
+	HAL_NVIC_EnableIRQ(TIM1_UP_TIM10_IRQn);
+	//3. Configure the Priority for TIM1_UP_TIM10_IRQn
+	HAL_NVIC_SetPriority(TIM1_UP_TIM10_IRQn, 15, 0);
+}
+
+void HAL_I2C_MspInit(I2C_HandleTypeDef *hi2c)
+{
+	//Here we are going to do the Low Level Initialization of I2C1 Peripheral.
+	GPIO_InitTypeDef GPIO_I2C = {0};
+	//1. Enable the Clock for I2C1 Peripheral
+	__HAL_RCC_I2C1_CLK_ENABLE();
+	__HAL_RCC_GPIOB_CLK_ENABLE();
+
+	//2.Pin MUXing Configuration
+	GPIO_I2C.Pin = GPIO_PIN_6;
+	GPIO_I2C.Mode = GPIO_MODE_AF_OD;
+	GPIO_I2C.Pull = GPIO_PULLUP;
+	GPIO_I2C.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+	GPIO_I2C.Alternate = GPIO_AF4_I2C1;
+	HAL_GPIO_Init(GPIOB, &GPIO_I2C);
+
+	GPIO_I2C.Pin = GPIO_PIN_7;
+	HAL_GPIO_Init(GPIOB, &GPIO_I2C);
+	//3.Enable the Interrupt and set up the Priority(NVIC Settings)
+	HAL_NVIC_SetPriority(I2C1_EV_IRQn, 15, 0);
+	HAL_NVIC_EnableIRQ(I2C1_EV_IRQn);
 }
 #endif
